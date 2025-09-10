@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attrition Launcher</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #e0e6ed;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .header {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 20px;
+      text-align: center;
+      border-bottom: 2px solid rgba(64, 224, 255, 0.3);
+    }
+
+    .logo {
+      font-size: 2.5em;
+      font-weight: bold;
+      color: #40e0ff;
+      text-shadow: 0 0 20px rgba(64, 224, 255, 0.5);
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 1.1em;
+      color: #b0c4de;
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+
+    .status-panel {
+      background: rgba(0, 0, 0, 0.4);
+      border: 2px solid rgba(64, 224, 255, 0.3);
+      border-radius: 10px;
+      padding: 30px;
+      min-width: 400px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+
+    .status-icon {
+      font-size: 3em;
+      margin-bottom: 20px;
+    }
+
+    .status-message {
+      font-size: 1.3em;
+      margin-bottom: 20px;
+      color: #e0e6ed;
+    }
+
+    .progress-container {
+      width: 100%;
+      height: 20px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+      margin: 20px 0;
+      overflow: hidden;
+      display: none;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #40e0ff 0%, #00bfff 100%);
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 10px;
+    }
+
+    .version-info {
+      margin: 20px 0;
+      font-size: 0.9em;
+      color: #b0c4de;
+    }
+
+    .download-info {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(64, 224, 255, 0.2);
+      border-radius: 5px;
+      padding: 15px;
+      margin: 20px 0;
+      font-size: 0.9em;
+    }
+
+    .download-details {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .download-filename {
+      color: #40e0ff;
+      font-weight: bold;
+      word-break: break-all;
+    }
+
+    .download-size {
+      color: #b0c4de;
+    }
+
+    .download-speed {
+      color: #90ee90;
+      font-size: 0.85em;
+    }
+
+    .launch-button {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      border: none;
+      color: white;
+      padding: 15px 40px;
+      font-size: 1.2em;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 20px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .launch-button:hover:not(:disabled) {
+      background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+    }
+
+    .launch-button:disabled {
+      background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .retry-button {
+      background: linear-gradient(135deg, #dc3545 0%, #e74c3c 100%);
+      border: none;
+      color: white;
+      padding: 10px 25px;
+      font-size: 1em;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 15px;
+      transition: all 0.3s ease;
+    }
+
+    .retry-button:hover {
+      background: linear-gradient(135deg, #c82333 0%, #c0392b 100%);
+      transform: translateY(-1px);
+    }
+
+    .release-notes {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(64, 224, 255, 0.2);
+      border-radius: 5px;
+      padding: 15px;
+      margin-top: 20px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 0.9em;
+      text-align: left;
+      display: none;
+    }
+
+    .footer {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 15px;
+      text-align: center;
+      border-top: 1px solid rgba(64, 224, 255, 0.3);
+      font-size: 0.9em;
+      color: #b0c4de;
+    }
+
+    .footer a {
+      color: #40e0ff;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Status-specific styles */
+    .status-checking .status-icon::before { content: "🔍"; }
+    .status-update-available .status-icon::before { content: "📦"; }
+    .status-downloading .status-icon::before { content: "⬇️"; }
+    .status-installing .status-icon::before { content: "⚙️"; }
+    .status-complete .status-icon::before { content: "✅"; }
+    .status-up-to-date .status-icon::before { content: "✅"; }
+    .status-error .status-icon::before { content: "❌"; }
+    .status-game-launched .status-icon::before { content: "🚀"; }
+
+    /* Animations */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .status-checking .status-icon,
+    .status-downloading .status-icon,
+    .status-installing .status-icon {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .status-panel {
+      animation: slideIn 0.5s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">ATTRITION</div>
+    <div class="subtitle">Strategic Space Empire</div>
+  </div>
+
+  <div class="main-content">
+    <div class="status-panel" id="statusPanel">
+      <div class="status-icon" id="statusIcon"></div>
+      <div class="status-message" id="statusMessage">Initializing launcher...</div>
+      
+      <div class="progress-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      
+      <div class="version-info" id="versionInfo"></div>
+      
+      <div class="download-info" id="downloadInfo" style="display: none;">
+        <div class="download-details">
+          <div class="download-filename" id="downloadFilename"></div>
+          <div class="download-size" id="downloadSize"></div>
+          <div class="download-speed" id="downloadSpeed"></div>
+        </div>
+      </div>
+      
+      <div class="release-notes" id="releaseNotes"></div>
+      
+      <button class="launch-button" id="launchButton" disabled>Launch Game</button>
+      <button class="retry-button" id="retryButton" style="display: none;">Retry</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>&copy; 2025 Attrition Game Studio | 
+    <a href="#" onclick="openWebsite()">Visit Website</a> | 
+    <a href="#" onclick="openSupport()">Support</a></p>
+  </div>
+
+  <script>
+    console.log('Launcher script loaded');
+    console.log('launcherAPI available:', !!window.launcherAPI);
+    
+    if (!window.launcherAPI) {
+      document.getElementById('statusMessage').textContent = 'Error: Launcher API not available';
+    }
+    
+    let currentStatus = null;
+    let isLaunchReady = false;
+
+    // Elements
+    const statusPanel = document.getElementById('statusPanel');
+    const statusIcon = document.getElementById('statusIcon');
+    const statusMessage = document.getElementById('statusMessage');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const versionInfo = document.getElementById('versionInfo');
+    const downloadInfo = document.getElementById('downloadInfo');
+    const downloadFilename = document.getElementById('downloadFilename');
+    const downloadSize = document.getElementById('downloadSize');
+    const downloadSpeed = document.getElementById('downloadSpeed');
+    const releaseNotes = document.getElementById('releaseNotes');
+    const launchButton = document.getElementById('launchButton');
+    const retryButton = document.getElementById('retryButton');
+    
+    // Download tracking
+    let downloadStartTime = null;
+    let lastProgressUpdate = null;
+    let downloadSizeBytes = null;
+    
+    // Utility functions
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+    
+    function formatSpeed(bytesPerSecond) {
+      return formatFileSize(bytesPerSecond) + '/s';
+    }
+
+    // Listen for launcher status updates
+    if (window.launcherAPI) {
+      console.log('Setting up launcher status listener');
+      window.launcherAPI.onLauncherStatus((status) => {
+        console.log('Received status update:', status);
+        updateStatus(status);
+      });
+    }
+
+    // Listen for launcher ready state
+    if (window.launcherAPI) {
+      console.log('Setting up launcher ready listener');
+      window.launcherAPI.onLauncherReady((ready) => {
+        console.log('Received ready state:', ready);
+        isLaunchReady = ready;
+        updateLaunchButton();
+      });
+    }
+
+    function updateStatus(status) {
+      currentStatus = status;
+      
+      // Update status panel class
+      statusPanel.className = 'status-panel';
+      if (status.status) {
+        statusPanel.classList.add(`status-${status.status}`);
+      }
+
+      // Update message
+      statusMessage.textContent = status.message || 'Processing...';
+
+      // Update progress bar and download info
+      if (status.progress !== undefined) {
+        progressContainer.style.display = 'block';
+        progressBar.style.width = `${status.progress}%`;
+        
+        // Update download speed calculation
+        if (status.status === 'downloading' && downloadStartTime && downloadSizeBytes) {
+          const now = Date.now();
+          const timeElapsed = (now - downloadStartTime) / 1000; // seconds
+          const bytesDownloaded = (status.progress / 100) * downloadSizeBytes;
+          const speed = bytesDownloaded / timeElapsed;
+          
+          if (timeElapsed > 1) { // Only show speed after 1 second
+            downloadSpeed.textContent = `Speed: ${formatSpeed(speed)}`;
+          }
+        }
+      } else {
+        progressContainer.style.display = 'none';
+      }
+
+      // Update version info
+      if (status.currentVersion) {
+        let versionText = `Current Version: ${status.currentVersion}`;
+        if (status.latestVersion && status.latestVersion !== status.currentVersion) {
+          versionText += ` → ${status.latestVersion}`;
+        }
+        versionInfo.textContent = versionText;
+        versionInfo.style.display = 'block';
+      } else {
+        versionInfo.style.display = 'none';
+      }
+
+      // Update download information
+      if (status.status === 'update-available' && status.fileName && status.fileSize) {
+        downloadInfo.style.display = 'block';
+        downloadFilename.textContent = `Downloading: ${status.fileName}`;
+        downloadSize.textContent = `Size: ${formatFileSize(status.fileSize)}`;
+        downloadSpeed.textContent = '';
+        
+        // Store download info for speed calculation
+        downloadSizeBytes = status.fileSize;
+      } else if (status.status === 'downloading') {
+        downloadInfo.style.display = 'block';
+        
+        // Start download timer
+        if (!downloadStartTime) {
+          downloadStartTime = Date.now();
+        }
+      } else {
+        downloadInfo.style.display = 'none';
+        downloadStartTime = null;
+        downloadSizeBytes = null;
+      }
+      
+      // Update release notes
+      if (status.releaseNotes && status.status === 'update-available') {
+        releaseNotes.innerHTML = formatReleaseNotes(status.releaseNotes);
+        releaseNotes.style.display = 'block';
+      } else {
+        releaseNotes.style.display = 'none';
+      }
+
+      // Show/hide retry button
+      if (status.status === 'error') {
+        retryButton.style.display = 'inline-block';
+      } else {
+        retryButton.style.display = 'none';
+      }
+
+      updateLaunchButton();
+    }
+
+    function updateLaunchButton() {
+      const canLaunch = isLaunchReady && 
+        (currentStatus?.status === 'up-to-date' || 
+         currentStatus?.status === 'complete' ||
+         currentStatus?.status === 'game-launched');
+
+      launchButton.disabled = !canLaunch;
+      
+      if (currentStatus?.status === 'game-launched') {
+        launchButton.textContent = 'Game Running';
+      } else if (canLaunch) {
+        launchButton.textContent = 'Launch Game';
+      } else if (currentStatus?.status === 'error') {
+        launchButton.textContent = 'Cannot Launch';
+      } else {
+        launchButton.textContent = 'Please Wait...';
+      }
+    }
+
+    function formatReleaseNotes(notes) {
+      // Basic markdown-to-HTML conversion
+      return notes
+        .replace(/^### (.*$)/gm, '<h4>$1</h4>')
+        .replace(/^## (.*$)/gm, '<h3>$1</h3>')
+        .replace(/^# (.*$)/gm, '<h2>$1</h2>')
+        .replace(/^- (.*$)/gm, '<li>$1</li>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/^(?!<[h2-6]|<li|<\/p>)/, '<p>')
+        .replace(/(?<!<\/h[2-6]>|<\/li>|<p>)$/, '</p>')
+        .replace(/<p><li>/g, '<ul><li>')
+        .replace(/<\/li><\/p>/g, '</li></ul>');
+    }
+
+    // Button event handlers
+    launchButton.addEventListener('click', async () => {
+      if (!launchButton.disabled) {
+        try {
+          launchButton.disabled = true;
+          launchButton.textContent = 'Launching...';
+          await window.launcherAPI.launchGame();
+        } catch (error) {
+          console.error('Launch failed:', error);
+          launchButton.disabled = false;
+          launchButton.textContent = 'Launch Failed';
+        }
+      }
+    });
+
+    retryButton.addEventListener('click', async () => {
+      try {
+        retryButton.disabled = true;
+        await window.launcherAPI.checkForUpdates();
+        retryButton.disabled = false;
+      } catch (error) {
+        console.error('Retry failed:', error);
+        retryButton.disabled = false;
+      }
+    });
+
+    // External links
+    function openWebsite() {
+      window.launcherAPI.openUrl('https://attrition-game.com');
+    }
+
+    function openSupport() {
+      window.launcherAPI.openUrl('https://github.com/BrianSMitchell/attrition-desktop/issues');
+    }
+
+    // Initial setup
+    updateLaunchButton();
+  </script>
+</body>
+</html>
