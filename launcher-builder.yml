@@ -35,7 +35,7 @@ win:
     - target: portable
       arch:
         - x64
-  # icon: ../assets/icon.ico
+  # icon: assets/icon.ico
   requestedExecutionLevel: requireAdministrator # Needed for installing game updates
   artifactName: ${productName}-Setup-${version}.${ext}
   forceCodeSigning: false
@@ -44,6 +44,7 @@ win:
   certificatePassword: null
   signAndEditExecutable: false
   signDlls: false
+  verifyUpdateCodeSignature: false
 
 # NSIS installer configuration
 nsis:
