@@ -12,9 +12,10 @@ const semver = require('semver');
  * Downloads updates from GitHub releases and manages installation
  */
 class UpdateChecker {
-  constructor() {
+  constructor(gamePathManager) {
     this.githubRepo = 'BrianSMitchell/attrition-desktop';
     this.apiBaseUrl = 'https://api.github.com';
+    this.gamePathManager = gamePathManager;
     this.currentVersion = this.getCurrentVersion();
     this.tempDir = this.getTempDirectory();
     
@@ -30,20 +31,9 @@ class UpdateChecker {
    */
   getCurrentVersion() {
     try {
-      // In production, read from the game's package.json or version file
       if (app.isPackaged) {
-        // Try to read version from a version file next to the game
-        const gameDir = path.join(process.resourcesPath, '..');
-        const versionFile = path.join(gameDir, 'version.txt');
-        
-        if (fs.existsSync(versionFile)) {
-          const version = fs.readFileSync(versionFile, 'utf8').trim();
-          log.info('Read version from version.txt:', version);
-          return version;
-        }
-        
-        // Fallback to launcher version
-        return app.getVersion();
+        // Use GamePathManager to check game version
+        return this.gamePathManager.getGameVersion();
       } else {
         // In development, read from the desktop package.json
         const desktopPackageJson = path.resolve(process.cwd(), 'packages', 'desktop', 'package.json');
@@ -52,11 +42,11 @@ class UpdateChecker {
           return pkg.version;
         }
         
-        return '1.0.0'; // Default fallback
+        return '0.0.0'; // Force download in development
       }
     } catch (error) {
       log.error('Failed to get current version:', error);
-      return '1.0.0'; // Default fallback
+      return '0.0.0'; // Force download on error
     }
   }
 
@@ -81,7 +71,8 @@ class UpdateChecker {
     log.info('Checking for updates...');
     
     try {
-      const response = await axios.get(`${this.apiBaseUrl}/repos/${this.githubRepo}/releases/latest`, {
+      // Get all releases to filter for game releases (not launcher releases)
+      const response = await axios.get(`${this.apiBaseUrl}/repos/${this.githubRepo}/releases`, {
         headers: {
           'Accept': 'application/vnd.github.v3+json',
           'User-Agent': 'Attrition-Launcher/1.0'
@@ -89,7 +80,17 @@ class UpdateChecker {
         timeout: 30000
       });
 
-      const latestRelease = response.data;
+      // Filter out launcher releases (with -launcher suffix) to get only game releases
+      const gameReleases = response.data.filter(release => 
+        !release.tag_name.includes('-launcher')
+      );
+      
+      if (gameReleases.length === 0) {
+        throw new Error('No game releases found in the repository');
+      }
+      
+      // Get the latest game release
+      const latestRelease = gameReleases[0]; // Releases are sorted by date, newest first
       const latestVersion = latestRelease.tag_name.replace(/^v/, ''); // Remove 'v' prefix
       
       log.info('Latest release info:', {
@@ -202,30 +203,30 @@ class UpdateChecker {
   async installUpdate(updateInfo) {
     const downloadPath = path.join(this.tempDir, updateInfo.fileName);
     
-    log.info('Installing update:', downloadPath);
+    log.info('Installing game update:', downloadPath);
 
     if (!fs.existsSync(downloadPath)) {
       throw new Error('Downloaded installer not found');
     }
 
     try {
-      // Run the installer in silent mode
-      const installerArgs = ['/S']; // NSIS silent install
+      // Run the installer with UI (not silent) so user can see progress
+      const installerArgs = []; // No silent mode - let user see the installation
       
-      log.info('Running installer:', {
+      log.info('Running game installer:', {
         path: downloadPath,
         args: installerArgs
       });
 
       return new Promise((resolve, reject) => {
         const installer = spawn(downloadPath, installerArgs, {
-          stdio: 'ignore',
-          detached: true
+          stdio: 'pipe', // Capture output for debugging
+          detached: false // Keep attached so we wait for completion
         });
 
         installer.on('close', (code) => {
           if (code === 0) {
-            log.info('Installation completed successfully');
+            log.info('Game installation completed successfully');
             
             // Clean up downloaded file
             try {
@@ -234,28 +235,34 @@ class UpdateChecker {
               log.warn('Failed to clean up downloaded file:', cleanupError);
             }
             
-            // Update version tracking
-            this.updateVersionFile(updateInfo.latestVersion);
+            // Auto-detect where the game was installed
+            const detectedPath = this.gamePathManager.detectGameInstallation();
+            if (detectedPath) {
+              // Update version tracking using GamePathManager
+              this.gamePathManager.setGameVersion(updateInfo.latestVersion);
+              log.info('Game installation detected and configured successfully');
+            } else {
+              log.warn('Could not detect game installation location after installer completed');
+            }
             
             resolve();
           } else {
-            log.error('Installation failed with code:', code);
-            reject(new Error(`Installation failed with exit code: ${code}`));
+            log.error('Game installation failed with code:', code);
+            reject(new Error(`Game installation failed with exit code: ${code}`));
           }
         });
 
         installer.on('error', (error) => {
-          log.error('Installation process error:', error);
+          log.error('Game installation process error:', error);
           reject(error);
         });
 
-        // Don't wait for the installer to finish
-        installer.unref();
+        // Wait for the installer to finish (removed unref())
       });
       
     } catch (error) {
-      log.error('Failed to install update:', error);
-      throw new Error(`Installation failed: ${error.message}`);
+      log.error('Failed to install game update:', error);
+      throw new Error(`Game installation failed: ${error.message}`);
     }
   }
 
@@ -264,17 +271,24 @@ class UpdateChecker {
    */
   updateVersionFile(newVersion) {
     try {
-      const gameDir = path.join(process.resourcesPath, '..');
+      // Write version file next to the game executable (Program Files)
+      const gameDir = path.join('C:', 'Program Files', 'Attrition');
       const versionFile = path.join(gameDir, 'version.txt');
       
+      // Ensure the game directory exists
+      if (!fs.existsSync(gameDir)) {
+        log.warn('Game directory does not exist when trying to write version file:', gameDir);
+        return;
+      }
+      
       fs.writeFileSync(versionFile, newVersion);
-      log.info('Version file updated:', { newVersion, path: versionFile });
+      log.info('Game version file updated:', { newVersion, path: versionFile });
       
       // Update current version for next check
       this.currentVersion = newVersion;
       
     } catch (error) {
-      log.error('Failed to update version file:', error);
+      log.error('Failed to update game version file:', error);
     }
   }
 

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const { spawn } = require('node:child_process');
 const log = require('electron-log');
 const { UpdateChecker } = require('./services/updateChecker.js');
+const { GamePathManager } = require('./services/gamePathManager.js');
 
 const DIRNAME = __dirname;
 const APP_ID = 'com.attrition.launcher';
@@ -20,6 +21,7 @@ log.info('Attrition Launcher starting...', {
 let mainWindow = null;
 let updateChecker = null;
 let gameProcess = null;
+let gamePathManager = null;
 
 /**
  * Create the launcher window
@@ -96,7 +98,7 @@ async function startUpdateCheck() {
   log.info('Starting update check process');
   
   try {
-    updateChecker = new UpdateChecker();
+    updateChecker = new UpdateChecker(gamePathManager);
     
     // Send initial status
     log.info('Sending initial status to renderer');
@@ -107,13 +109,15 @@ async function startUpdateCheck() {
       });
     }
     
-    const updateInfo = await updateChecker.checkForUpdates();
+  const updateInfo = await updateChecker.checkForUpdates();
     
     if (updateInfo.hasUpdate) {
       log.info('Update available', {
         currentVersion: updateInfo.currentVersion,
         latestVersion: updateInfo.latestVersion
       });
+      
+      // Let the installer handle path selection - just proceed with download
       
       log.info('Sending update-available status to renderer');
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -203,7 +207,7 @@ async function launchGame() {
   log.info('Launching main game');
   
   try {
-    const gameExecutable = getGameExecutablePath();
+    let gameExecutable = getGameExecutablePath();
     
     log.info('Checking game executable:', {
       path: gameExecutable,
@@ -211,13 +215,38 @@ async function launchGame() {
     });
     
     if (!fs.existsSync(gameExecutable)) {
-      const errorMsg = `Game executable not found at: ${gameExecutable}`;
-      log.error(errorMsg);
-      mainWindow.webContents.send('launcher-status', {
-        status: 'error',
-        message: errorMsg
-      });
-      return;
+      log.warn(`Game executable not found at: ${gameExecutable}`);
+      
+      // Try to auto-detect the game installation
+      log.info('Attempting to detect game installation location');
+      const detectedPath = gamePathManager.detectGameInstallation();
+      
+      if (detectedPath) {
+        log.info('Game detected at new location, retrying launch');
+        // Retry with the newly detected path
+        const newGameExecutable = gamePathManager.getGameExecutablePath();
+        if (fs.existsSync(newGameExecutable)) {
+          // Update the gameExecutable variable for the rest of the function
+          gameExecutable = newGameExecutable;
+          log.info('Successfully found game at:', gameExecutable);
+        } else {
+          const errorMsg = `Game executable still not found after detection at: ${newGameExecutable}`;
+          log.error(errorMsg);
+          mainWindow.webContents.send('launcher-status', {
+            status: 'error',
+            message: errorMsg
+          });
+          return;
+        }
+      } else {
+        const errorMsg = `Game executable not found at: ${gameExecutable}. Please reinstall the game.`;
+        log.error(errorMsg);
+        mainWindow.webContents.send('launcher-status', {
+          status: 'error',
+          message: errorMsg
+        });
+        return;
+      }
     }
     
     // Check if the file is actually executable
@@ -335,11 +364,14 @@ async function launchGame() {
  */
 function getGameExecutablePath() {
   if (app.isPackaged) {
-    // In production, game is typically installed in AppData/Local/Programs/Attrition
-    const os = require('os');
-    const gameInstallPath = path.join(os.homedir(), 'AppData', 'Local', 'Programs', 'Attrition', 'Attrition.exe');
-    log.info('Production game path:', gameInstallPath);
-    return gameInstallPath;
+    // Use GamePathManager to get the configured game path
+    const gamePath = gamePathManager.getGameExecutablePath();
+    log.info('Getting game executable path:', {
+      isPackaged: true,
+      configuredPath: gamePathManager.getGameInstallPath(),
+      executablePath: gamePath
+    });
+    return gamePath;
   } else {
     // In development, use the built game from packages/releases
     const devPath = path.join(DIRNAME, '../../../packages/releases/win-unpacked/Attrition.exe');
@@ -365,9 +397,42 @@ ipcMain.handle('launcher:openUrl', async (event, url) => {
   await shell.openExternal(url);
 });
 
+ipcMain.handle('launcher:chooseGamePath', async () => {
+  // This handler is kept for compatibility but the installer handles path selection
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Choose Game Installation Directory',
+    defaultPath: gamePathManager.getDefaultGamePath(),
+    buttonLabel: 'Select Folder',
+    properties: ['openDirectory', 'createDirectory']
+  });
+  
+  if (!result.canceled && result.filePaths.length > 0) {
+    const selectedPath = result.filePaths[0];
+    const fullGamePath = path.join(selectedPath, 'Attrition');
+    gamePathManager.setGameInstallPath(fullGamePath);
+    log.info('User manually selected game path:', fullGamePath);
+    return fullGamePath;
+  }
+  
+  return null;
+});
+
+ipcMain.handle('launcher:getGameStatus', () => {
+  return {
+    isInstalled: gamePathManager.isGameInstalled(),
+    installPath: gamePathManager.getGameInstallPath(),
+    version: gamePathManager.getGameVersion()
+  };
+});
+
 // App event handlers
 app.whenReady().then(() => {
   app.setAppUserModelId(APP_ID);
+  
+  // Initialize GamePathManager
+  gamePathManager = new GamePathManager();
+  log.info('GamePathManager initialized');
+  
   createLauncherWindow();
 });
 

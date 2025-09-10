@@ -1,0 +1,102 @@
+appId: com.attrition.launcher
+productName: Attrition Launcher
+copyright: Copyright © 2025 Attrition Game Studio
+
+# Build configuration
+electronVersion: 31.2.0
+compression: maximum
+artifactName: ${productName}-Setup-${version}.${ext}
+
+# Disable code signing globally
+forceCodeSigning: false
+# Prevent downloading of code signing tools
+nodeGypRebuild: false
+buildDependenciesFromSource: false
+
+# Directories
+directories:
+  output: releases
+  buildResources: assets
+
+# File inclusion/exclusion
+files:
+  - src/**/*
+  - ui/**/*
+  - "!**/.DS_Store"
+  - "!**/node_modules/.cache"
+  - "!**/*.map"
+
+# Auto-updater settings (disabled for launcher - launcher manages game updates)
+publish: null
+
+# Environment variables handled via process.env, not in config file
+
+# Windows-specific configuration
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  # icon: assets/icon.ico
+  requestedExecutionLevel: requireAdministrator # Needed for installing game updates
+  artifactName: ${productName}-Setup-${version}.${ext}
+  forceCodeSigning: false
+  # Self-signed certificate configuration
+  certificateFile: "attrition-cert.pfx"
+  certificatePassword: "AttritionDev2025!"
+  signAndEditExecutable: true
+  signDlls: false
+  verifyUpdateCodeSignature: false
+
+# NSIS installer configuration
+nsis:
+  oneClick: false
+  perMachine: false  # Per-user install for proper desktop shortcuts
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  # installerIcon: ../assets/icon.ico
+  # uninstallerIcon: ../assets/icon.ico
+  # installerHeaderIcon: ../assets/icon.ico
+  createDesktopShortcut: true  # Create desktop shortcut
+  createStartMenuShortcut: true
+  shortcutName: "Attrition Launcher"
+  displayLanguageSelector: false
+  artifactName: "Attrition Launcher-Setup-${version}.${ext}"
+  # Custom NSIS script temporarily disabled for testing
+  # include: launcher-shortcuts.nsh
+  warningsAsErrors: false
+  # Additional installer customization
+  runAfterFinish: true  # Ask user if they want to run the launcher after install
+  menuCategory: "Attrition"  # Create start menu folder
+  deleteAppDataOnUninstall: false  # Preserve user data on uninstall
+  
+  # Custom installer script to ensure old versions are removed
+  # include: ../scripts/installer.nsh
+
+# macOS configuration (future)
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: ../assets/icon.icns
+  category: public.app-category.games
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: ../entitlements/entitlements.mac.plist
+  entitlementsInherit: ../entitlements/entitlements.mac.plist
+
+# Linux configuration (future)
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  icon: ../assets/icon.png
+  category: Game
+  synopsis: Strategic Space Empire Game Launcher
+  description: Launcher for Attrition - Strategic space empire building and warfare game

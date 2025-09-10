@@ -28,7 +28,11 @@ try {
       ipcRenderer.on('launcher-ready', handler);
       // Return cleanup function
       return () => ipcRenderer.removeListener('launcher-ready', handler);
-    }
+    },
+    
+    // Game path management
+    chooseGamePath: () => ipcRenderer.invoke('launcher:chooseGamePath'),
+    getGameStatus: () => ipcRenderer.invoke('launcher:getGameStatus')
   });
 
   console.log('Preload script loaded successfully');
