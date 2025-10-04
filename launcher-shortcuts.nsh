@@ -1,41 +1,26 @@
 !macro customInstall
-  DetailPrint "Installing Attrition Launcher with desktop shortcuts..."
+  DetailPrint "Installing Attrition Launcher..."
   
-  # Ensure desktop exists and is accessible
-  IfFileExists "$DESKTOP" desktop_ok desktop_problem
-  
-  desktop_problem:
-    DetailPrint "Warning: Desktop folder not accessible"
-    MessageBox MB_OK "Warning: Could not access desktop folder. Please create shortcuts manually."
-    Goto skip_desktop
-  
-  desktop_ok:
-  
-  # Remove any existing desktop shortcuts first
-  DetailPrint "Removing old shortcuts..."
+  # Remove any existing desktop shortcuts first (cleanup old versions)
+  DetailPrint "Cleaning up old shortcuts..."
   Delete "$DESKTOP\Attrition Launcher.lnk"
   Delete "$DESKTOP\Attrition.lnk"  # Remove any old game shortcuts
   
-  # Create the desktop shortcut for launcher (this is the primary way users access the game)
-  DetailPrint "Creating Attrition Launcher desktop shortcut..."
-  CreateShortcut "$DESKTOP\Attrition Launcher.lnk" "$INSTDIR\Attrition Launcher.exe" \
-    "" "$INSTDIR\Attrition Launcher.exe" 0 SW_SHOWNORMAL "" "Attrition Game Launcher"
+  # Desktop shortcut creation is now handled by electron-builder's createDesktopShortcut setting
+  # This allows user to choose during installation
   
-  # Verify the shortcut was created successfully
-  IfFileExists "$DESKTOP\Attrition Launcher.lnk" shortcut_success shortcut_failed
+  # Ensure desktop exists and is accessible for when user chooses desktop shortcut
+  IfFileExists "$DESKTOP" desktop_accessible desktop_warning
   
-  shortcut_success:
-    DetailPrint "✓ Desktop shortcut created successfully"
-    # Set proper file attributes to ensure it's visible
-    SetFileAttributes "$DESKTOP\Attrition Launcher.lnk" NORMAL
-    Goto desktop_done
+  desktop_warning:
+    DetailPrint "Warning: Desktop folder not accessible"
+    MessageBox MB_ICONINFORMATION|MB_OK "Note: Desktop folder is not accessible. Desktop shortcut creation may fail if selected.$\n$\nYou can always find Attrition Launcher in the Start Menu under 'Attrition'."
+    Goto continue_install
   
-  shortcut_failed:
-    DetailPrint "✗ Failed to create desktop shortcut"
-    MessageBox MB_ICONEXCLAMATION|MB_OK "Desktop shortcut creation failed.$\n$\nYou can find Attrition Launcher in the Start Menu under 'Attrition' or manually create a shortcut from:$\n$INSTDIR\Attrition Launcher.exe"
+  desktop_accessible:
+    DetailPrint "Desktop folder accessible for shortcut creation"
   
-  desktop_done:
-  skip_desktop:
+  continue_install:
   
   # Create start menu shortcuts (always create these as fallback)
   DetailPrint "Creating Start Menu shortcuts..."
@@ -43,33 +28,47 @@
   
   # Main launcher shortcut in start menu
   CreateShortcut "$SMPROGRAMS\Attrition\Attrition Launcher.lnk" "$INSTDIR\Attrition Launcher.exe" \
-    "" "$INSTDIR\Attrition Launcher.exe" 0 SW_SHOWNORMAL "" "Attrition Game Launcher"
+    "" "$INSTDIR\Attrition Launcher.exe" 0 SW_SHOWNORMAL "" "Launch Attrition Game"
   
   # Uninstaller shortcut
   CreateShortcut "$SMPROGRAMS\Attrition\Uninstall Attrition Launcher.lnk" "$INSTDIR\Uninstall Attrition Launcher.exe" \
     "" "" 0 SW_SHOWNORMAL "" "Uninstall Attrition Launcher"
   
-  # Write helpful installation summary
-  DetailPrint "Writing installation summary..."
-  FileOpen $0 "$INSTDIR\installation_summary.txt" w
-  FileWrite $0 "=== Attrition Launcher Installation Summary ===$\r$\n"
-  FileWrite $0 "Installation Date: $\r$\n"
-  FileWrite $0 "Installation Directory: $INSTDIR$\r$\n"
-  FileWrite $0 "$\r$\n"
-  FileWrite $0 "How to Launch Attrition:$\r$\n"
-  FileWrite $0 "1. Double-click 'Attrition Launcher' on your desktop$\r$\n"
-  FileWrite $0 "2. Or go to Start Menu > Attrition > Attrition Launcher$\r$\n"
-  FileWrite $0 "$\r$\n"
-  FileWrite $0 "The launcher will download and manage the game for you.$\r$\n"
-  FileWrite $0 "Do not run the game directly - always use the launcher.$\r$\n"
-  FileWrite $0 "$\r$\n"
-  FileWrite $0 "Shortcuts Created:$\r$\n"
-  IfFileExists "$DESKTOP\Attrition Launcher.lnk" 0 +2
-  FileWrite $0 "✓ Desktop: $DESKTOP\Attrition Launcher.lnk$\r$\n"
-  FileWrite $0 "✓ Start Menu: $SMPROGRAMS\Attrition\Attrition Launcher.lnk$\r$\n"
-  FileClose $0
+  # Write helpful installation summary with enhanced messaging
+  DetailPrint "Creating installation documentation..."
   
-  DetailPrint "Attrition Launcher installation completed!"
+  FileOpen $8 "$INSTDIR\installation_summary.txt" w
+  FileWrite $8 "=== Attrition Launcher Installation Summary ===$\r$\n"
+  FileWrite $8 "Installation Date: $(^Date)$\r$\n"
+  FileWrite $8 "Installation Directory: $INSTDIR$\r$\n"
+  FileWrite $8 "$\r$\n"
+  FileWrite $8 "IMPORTANT: How to Launch Attrition Game$\r$\n"
+  FileWrite $8 "==========================================$\r$\n"
+  IfFileExists "$DESKTOP\Attrition Launcher.lnk" 0 +3
+    FileWrite $8 "1. Double-click 'Attrition Launcher' icon on your desktop$\r$\n"
+    Goto start_menu_instruction
+  FileWrite $8 "1. Go to Start Menu > Attrition > Attrition Launcher$\r$\n"
+  start_menu_instruction:
+  FileWrite $8 "2. Or navigate to: $INSTDIR\Attrition Launcher.exe$\r$\n"
+  FileWrite $8 "$\r$\n"
+  FileWrite $8 "The launcher will automatically:$\r$\n"
+  FileWrite $8 "- Download and install the latest game version$\r$\n"
+  FileWrite $8 "- Keep your game updated$\r$\n"
+  FileWrite $8 "- Launch the game for you$\r$\n"
+  FileWrite $8 "$\r$\n"
+  FileWrite $8 "CRITICAL: Always use the launcher!$\r$\n"
+  FileWrite $8 "Do NOT run the game executable directly.$\r$\n"
+  FileWrite $8 "The launcher ensures you have the latest version.$\r$\n"
+  FileWrite $8 "$\r$\n"
+  FileWrite $8 "Installation Details:$\r$\n"
+  IfFileExists "$DESKTOP\Attrition Launcher.lnk" 0 +2
+  FileWrite $8 "✓ Desktop Shortcut: Created$\r$\n"
+  FileWrite $8 "✓ Start Menu: Programs > Attrition > Attrition Launcher$\r$\n"
+  FileWrite $8 "✓ Launcher Location: $INSTDIR$\r$\n"
+  FileClose $8
+  
+  DetailPrint "Attrition Launcher installation completed successfully!"
+  DetailPrint "Users should launch games via the Attrition Launcher only"
 !macroend
 
 !macro customUnInstall

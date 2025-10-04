@@ -56,17 +56,17 @@ nsis:
   oneClick: false
   perMachine: false  # Per-user install for proper desktop shortcuts
   allowElevation: true
-  allowToChangeInstallationDirectory: true
+  allowToChangeInstallationDirectory: true  # Let player choose install directory
   # installerIcon: ../assets/icon.ico
   # uninstallerIcon: ../assets/icon.ico
   # installerHeaderIcon: ../assets/icon.ico
-  createDesktopShortcut: true  # Create desktop shortcut
+  createDesktopShortcut: always  # Always create desktop shortcut for the launcher
   createStartMenuShortcut: true
   shortcutName: "Attrition Launcher"
   displayLanguageSelector: false
   artifactName: "Attrition Launcher-Setup-${version}.${ext}"
-  # Custom NSIS script temporarily disabled for testing
-  # include: launcher-shortcuts.nsh
+  # Ensure start menu and documentation are created as a fallback
+  include: launcher-shortcuts.nsh
   warningsAsErrors: false
   # Additional installer customization
   runAfterFinish: true  # Ask user if they want to run the launcher after install
