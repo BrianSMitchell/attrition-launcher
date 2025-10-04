@@ -6,22 +6,19 @@
   Delete "$DESKTOP\Attrition Launcher.lnk"
   Delete "$DESKTOP\Attrition.lnk"  # Remove any old game shortcuts
   
-  # Desktop shortcut creation is now handled by electron-builder's createDesktopShortcut setting
-  # This allows user to choose during installation
-  
-  # Ensure desktop exists and is accessible for when user chooses desktop shortcut
+  # Explicitly create a Desktop shortcut for the launcher (guaranteed)
   IfFileExists "$DESKTOP" desktop_accessible desktop_warning
   
   desktop_warning:
     DetailPrint "Warning: Desktop folder not accessible"
-    MessageBox MB_ICONINFORMATION|MB_OK "Note: Desktop folder is not accessible. Desktop shortcut creation may fail if selected.$\n$\nYou can always find Attrition Launcher in the Start Menu under 'Attrition'."
-    Goto continue_install
+    MessageBox MB_ICONINFORMATION|MB_OK "Note: Desktop folder is not accessible. Desktop shortcut creation may fail.$\n$\nYou can always find Attrition Launcher in the Start Menu under 'Attrition'."
+    Goto create_start_menu
   
   desktop_accessible:
-    DetailPrint "Desktop folder accessible for shortcut creation"
+    DetailPrint "Creating Desktop shortcut..."
+    CreateShortcut "$DESKTOP\Attrition Launcher.lnk" "$INSTDIR\Attrition Launcher.exe" "" "$INSTDIR\Attrition Launcher.exe" 0 SW_SHOWNORMAL "" "Launch Attrition Game"
   
-  continue_install:
-  
+  create_start_menu:
   # Create start menu shortcuts (always create these as fallback)
   DetailPrint "Creating Start Menu shortcuts..."
   CreateDirectory "$SMPROGRAMS\Attrition"

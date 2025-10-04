@@ -81,10 +81,9 @@ function createLauncherWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
     
-    // Kill game process if launcher is closed
-    if (gameProcess && !gameProcess.killed) {
-      log.info('Killing game process due to launcher close');
-      gameProcess.kill();
+    // Don't kill game process - it's detached and should run independently
+    if (gameProcess) {
+      log.info('Launcher closed but game process will continue running independently');
     }
   });
 
@@ -268,8 +267,8 @@ async function launchGame() {
     
     // Use more explicit spawn options
     gameProcess = spawn(gameExecutable, ['--launched-by-launcher'], {
-      detached: false, // Keep attached for better error handling
-      stdio: ['ignore', 'pipe', 'pipe'], // Capture stdout/stderr for debugging
+      detached: true, // Detach so game runs independently
+      stdio: ['ignore', 'ignore', 'ignore'], // Don't capture output to avoid blocking
       env: {
         ...process.env,
         ATTRITION_LAUNCHED_BY_LAUNCHER: 'true'
@@ -278,18 +277,8 @@ async function launchGame() {
       shell: false
     });
     
-    // Capture output for debugging
-    if (gameProcess.stdout) {
-      gameProcess.stdout.on('data', (data) => {
-        log.info('Game stdout:', data.toString());
-      });
-    }
-    
-    if (gameProcess.stderr) {
-      gameProcess.stderr.on('data', (data) => {
-        log.error('Game stderr:', data.toString());
-      });
-    }
+    // Unref the process so launcher can close independently
+    gameProcess.unref();
     
     gameProcess.on('spawn', () => {
       log.info('Game process spawned successfully');
@@ -298,19 +287,24 @@ async function launchGame() {
         message: 'Game started successfully!'
       });
       
-      // Minimize launcher immediately when game spawns
-      if (mainWindow) {
-        log.info('Game spawned, minimizing launcher');
-        mainWindow.minimize();
-        
-        // Close launcher after game has had time to stabilize
-        setTimeout(() => {
-          if (mainWindow && gameProcess && !gameProcess.killed) {
-            log.info('Game appears stable, closing launcher');
-            mainWindow.close();
-          }
-        }, 5000); // 5 seconds to ensure game is stable
+      // Auto-close the launcher once the game has spawned successfully.
+      // The game process is spawned with detached:true and unref(),
+      // and our before-quit handler does NOT kill the game, so it will continue running.
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        try {
+          log.info('Game spawned; closing launcher window');
+          mainWindow.close();
+        } catch (e) {
+          log.warn('Failed to close launcher window, attempting app.quit()', e);
+        }
       }
+      // Ensure process exits even if window close didn’t trigger quit
+      setTimeout(() => {
+        try {
+          log.info('Exiting launcher process after game launch');
+          app.quit();
+        } catch {}
+      }, 500);
     });
     
     gameProcess.on('error', (error) => {
@@ -451,9 +445,8 @@ app.on('activate', () => {
 app.on('before-quit', () => {
   log.info('Launcher shutting down');
   
-  // Clean up game process
-  if (gameProcess && !gameProcess.killed) {
-    log.info('Cleaning up game process');
-    gameProcess.kill();
+  // Don't kill game process since it's detached and should run independently
+  if (gameProcess) {
+    log.info('Game process is detached and will continue running');
   }
 });
