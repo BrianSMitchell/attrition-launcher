@@ -32,6 +32,7 @@ publish:
   owner: BrianSMitchell
   repo: attrition-launcher
   publishAutoUpdate: true
+  releaseType: release
 
 # Environment variables handled via process.env, not in config file
 
