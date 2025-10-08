@@ -56,6 +56,10 @@ win:
   signDlls: false
   verifyUpdateCodeSignature: false
 
+# Give portable build a unique artifact name to avoid clobbering NSIS filename during publish
+portable:
+  artifactName: ${productName}-Portable-${version}.${ext}
+
 # NSIS installer configuration
 nsis:
   oneClick: false
