@@ -1,0 +1,26 @@
+appId: com.attrition.launcher
+productName: Attrition Launcher
+copyright: Copyright © 2025 Attrition Game Studio
+
+electronVersion: 31.2.0
+artifactName: ${productName}-Setup-${version}.${ext}
+forceCodeSigning: false
+
+directories:
+  output: releases
+
+files:
+  - src/**/*
+  - ui/**/*
+
+win:
+  target: nsis
+  certificateFile: "attrition-cert.pfx"
+  certificatePassword: "AttritionDev2025!"
+
+nsis:
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

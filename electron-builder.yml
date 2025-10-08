@@ -26,8 +26,12 @@ files:
   - "!**/node_modules/.cache"
   - "!**/*.map"
 
-# Auto-updater settings (disabled for launcher - launcher manages game updates)
-publish: null
+# Auto-updater settings (enabled for launcher self-update)
+publish:
+  provider: github
+  owner: BrianSMitchell
+  repo: attrition-launcher
+  publishAutoUpdate: true
 
 # Environment variables handled via process.env, not in config file
 

@@ -1,0 +1,59 @@
+appId: com.attrition.launcher
+productName: Attrition Launcher
+copyright: Copyright © 2025 Attrition Game Studio
+
+# Build configuration
+electronVersion: 31.2.0
+compression: maximum
+artifactName: ${productName}-Setup-${version}.${ext}
+
+# Disable code signing globally
+forceCodeSigning: false
+
+# Directories
+directories:
+  output: releases
+  buildResources: assets
+
+# File inclusion/exclusion
+files:
+  - src/**/*
+  - ui/**/*
+  - "!**/.DS_Store"
+  - "!**/node_modules/.cache"
+  - "!**/*.map"
+
+# Auto-updater settings (disabled for launcher - launcher manages game updates)
+publish: null
+
+# Windows-specific configuration
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  requestedExecutionLevel: requireAdministrator # Needed for installing game updates
+  artifactName: ${productName}-Setup-${version}.${ext}
+  forceCodeSigning: false
+  # Self-signed certificate configuration
+  certificateFile: "attrition-cert.pfx"
+  certificatePassword: "AttritionDev2025!"
+  signAndEditExecutable: true
+  signDlls: false
+  verifyUpdateCodeSignature: false
+
+# NSIS installer configuration - SIMPLE
+nsis:
+  oneClick: false                           # Show installer UI
+  perMachine: false                        # Per-user install
+  allowElevation: true
+  allowToChangeInstallationDirectory: true  # Let user choose directory
+  createDesktopShortcut: true              # Create desktop shortcut
+  createStartMenuShortcut: true            # Create start menu shortcut
+  shortcutName: "Attrition Launcher"
+  displayLanguageSelector: false
+  artifactName: "Attrition Launcher-Setup-${version}.${ext}"
+  warningsAsErrors: false

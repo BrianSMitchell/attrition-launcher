@@ -1,3 +1,32 @@
+!macro customInit
+  ; Attempt to uninstall any previously installed version before proceeding
+  DetailPrint "Checking for existing Attrition Launcher installation..."
+
+  ; Try common uninstall registry keys written by electron-builder (per-user first)
+  StrCpy $0 ""
+  ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${UNINSTALL_REGISTRY_KEY}" "UninstallString"
+  ${If} $0 == ""
+    ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "UninstallString"
+  ${EndIf}
+  ${If} $0 == ""
+    ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${UNINSTALL_REGISTRY_KEY}" "UninstallString"
+  ${EndIf}
+  ${If} $0 == ""
+    ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "UninstallString"
+  ${EndIf}
+
+  ${If} $0 != ""
+    DetailPrint "Existing installation found. Uninstalling previous version..."
+    ; Run the uninstaller silently. If $0 already contains quotes, this still works.
+    ExecWait '$0 /S' $1
+    DetailPrint "Previous uninstall finished with code $1"
+    ; Give Windows a moment to release file locks from the uninstaller
+    Sleep 1000
+  ${Else}
+    DetailPrint "No previous installation detected."
+  ${EndIf}
+!macroend
+
 !macro customInstall
   DetailPrint "Installing Attrition Launcher..."
   

@@ -89,10 +89,42 @@
       border-radius: 10px;
     }
 
+    /* Indeterminate progress animation for installation phase */
+    .progress-bar.indeterminate {
+      width: 100% !important;
+      background: linear-gradient(90deg, rgba(64, 224, 255, 0.2) 25%, rgba(64, 224, 255, 0.6) 50%, rgba(64, 224, 255, 0.2) 75%);
+      background-size: 200% 100%;
+      animation: progressIndeterminate 1.2s infinite linear;
+    }
+
+    @keyframes progressIndeterminate {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
     .version-info {
       margin: 20px 0;
       font-size: 0.9em;
       color: #b0c4de;
+    }
+
+    /* Installing tips (rotating) */
+    .installing-tips {
+      margin-top: 8px;
+      color: #b0c4de;
+      font-size: 0.95em;
+      min-height: 1.2em; /* Reserve space to avoid layout shift */
+      text-shadow: 0 0 8px rgba(64, 224, 255, 0.15);
+      display: none;
+    }
+
+    .tips-fade {
+      animation: tipsFade 0.6s ease;
+    }
+
+    @keyframes tipsFade {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     .download-info {
@@ -249,6 +281,9 @@
       </div>
       
       <div class="version-info" id="versionInfo"></div>
+
+      <!-- Installing rotating tips -->
+      <div class="installing-tips" id="installingTips"></div>
       
       <div class="download-info" id="downloadInfo" style="display: none;">
         <div class="download-details">
@@ -296,11 +331,25 @@
     const releaseNotes = document.getElementById('releaseNotes');
     const launchButton = document.getElementById('launchButton');
     const retryButton = document.getElementById('retryButton');
+    const installingTips = document.getElementById('installingTips');
     
     // Download tracking
     let downloadStartTime = null;
     let lastProgressUpdate = null;
     let downloadSizeBytes = null;
+
+    // Installing tips rotation
+    let tipsInterval = null;
+    let tipIndex = 0;
+    const installingTipsList = [
+      'Preparing files…',
+      'Unpacking archives…',
+      'Calibrating star drives…',
+      'Optimizing textures…',
+      'Syncing galaxy map…',
+      'Configuring modules…',
+      'Finalizing installation…'
+    ];
     
     // Utility functions
     function formatFileSize(bytes) {
@@ -346,9 +395,11 @@
       // Update message
       statusMessage.textContent = status.message || 'Processing...';
 
-      // Update progress bar and download info
+      // Update progress bar and download/installation info
       if (status.progress !== undefined) {
+        // Determinate progress (e.g., downloading)
         progressContainer.style.display = 'block';
+        progressBar.classList.remove('indeterminate');
         progressBar.style.width = `${status.progress}%`;
         
         // Update download speed calculation
@@ -362,8 +413,32 @@
             downloadSpeed.textContent = `Speed: ${formatSpeed(speed)}`;
           }
         }
+      } else if (status.status === 'installing') {
+        // Indeterminate progress (silent installer running)
+        progressContainer.style.display = 'block';
+        progressBar.classList.add('indeterminate');
+        statusMessage.textContent = status.message || 'Installing game…';
+
+        // Show rotating installing tips
+        installingTips.style.display = 'block';
+        const setTip = () => {
+          installingTips.classList.remove('tips-fade');
+          // Trigger reflow to restart animation
+          void installingTips.offsetWidth;
+          installingTips.textContent = installingTipsList[tipIndex % installingTipsList.length];
+          installingTips.classList.add('tips-fade');
+          tipIndex++;
+        };
+        if (!tipsInterval) {
+          setTip();
+          tipsInterval = setInterval(setTip, 1600);
+        }
       } else {
         progressContainer.style.display = 'none';
+        progressBar.classList.remove('indeterminate');
+        // Hide tips and stop rotation when leaving installing state
+        installingTips.style.display = 'none';
+        if (tipsInterval) { clearInterval(tipsInterval); tipsInterval = null; }
       }
 
       // Update version info
@@ -389,6 +464,9 @@
         downloadSizeBytes = status.fileSize;
       } else if (status.status === 'downloading') {
         downloadInfo.style.display = 'block';
+        // Hide installing tips during download
+        installingTips.style.display = 'none';
+        if (tipsInterval) { clearInterval(tipsInterval); tipsInterval = null; }
         
         // Start download timer
         if (!downloadStartTime) {
@@ -398,6 +476,8 @@
         downloadInfo.style.display = 'none';
         downloadStartTime = null;
         downloadSizeBytes = null;
+        installingTips.style.display = 'none';
+        if (tipsInterval) { clearInterval(tipsInterval); tipsInterval = null; }
       }
       
       // Update release notes

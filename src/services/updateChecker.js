@@ -210,17 +210,19 @@ class UpdateChecker {
     }
 
     try {
-      // Run the installer with UI (not silent) so user can see progress
-      const installerArgs = []; // No silent mode - let user see the installation
+      // Run the installer silently so the UI stays contained within the launcher
+      // NSIS supports silent mode via /S. We also pass /currentuser to keep per-user installs.
+      const installerArgs = ['/S', '/currentuser'];
       
-      log.info('Running game installer:', {
+      log.info('Running game installer silently:', {
         path: downloadPath,
         args: installerArgs
       });
 
       return new Promise((resolve, reject) => {
         const installer = spawn(downloadPath, installerArgs, {
-          stdio: 'pipe', // Capture output for debugging
+          stdio: 'ignore', // No separate installer output window
+          windowsHide: true, // Ensure no new window is shown
           detached: false // Keep attached so we wait for completion
         });
 

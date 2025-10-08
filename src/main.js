@@ -5,6 +5,7 @@ const { spawn } = require('node:child_process');
 const log = require('electron-log');
 const { UpdateChecker } = require('./services/updateChecker.js');
 const { GamePathManager } = require('./services/gamePathManager.js');
+const { autoUpdater } = require('electron-updater');
 
 const DIRNAME = __dirname;
 const APP_ID = 'com.attrition.launcher';
@@ -72,9 +73,9 @@ function createLauncherWindow() {
     
     // Wait a moment for the renderer to be ready
     setTimeout(() => {
-      log.info('Starting update check after delay');
-      startUpdateCheck();
-    }, 1000);
+      log.info('Starting launcher self-update check');
+      startLauncherUpdateFlow();
+    }, 800);
   });
 
   // Handle window closed
@@ -91,7 +92,7 @@ function createLauncherWindow() {
 }
 
 /**
- * Start the update checking process
+ * Start the game update checking process (runs after launcher update is handled)
  */
 async function startUpdateCheck() {
   log.info('Starting update check process');
@@ -418,6 +419,85 @@ ipcMain.handle('launcher:getGameStatus', () => {
     version: gamePathManager.getGameVersion()
   };
 });
+
+function startLauncherUpdateFlow() {
+  try {
+    // Configure logger for autoUpdater
+    autoUpdater.logger = log;
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = false;
+
+    // Events
+    autoUpdater.on('checking-for-update', () => {
+      log.info('[LauncherUpdate] Checking for launcher updates...');
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('launcher-status', {
+          status: 'checking',
+          message: 'Checking launcher updates...'
+        });
+      }
+    });
+
+    autoUpdater.on('update-available', (info) => {
+      log.info('[LauncherUpdate] Update available:', info);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('launcher-status', {
+          status: 'downloading',
+          message: `Updating launcher to v${info.version}...`,
+          progress: 0
+        });
+      }
+    });
+
+    autoUpdater.on('update-not-available', (info) => {
+      log.info('[LauncherUpdate] No launcher update available:', info);
+      // Proceed to game update flow
+      startUpdateCheck();
+    });
+
+    autoUpdater.on('download-progress', (progress) => {
+      const pct = Math.round(progress.percent || 0);
+      log.info(`[LauncherUpdate] Download progress: ${pct}% (${Math.round(progress.transferred/1024/1024)}/${Math.round(progress.total/1024/1024)} MB)`);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('launcher-status', {
+          status: 'downloading',
+          message: `Updating launcher... ${pct}%`,
+          progress: pct
+        });
+      }
+    });
+
+    autoUpdater.on('update-downloaded', (info) => {
+      log.info('[LauncherUpdate] Update downloaded; quitting and installing.');
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('launcher-status', {
+          status: 'installing',
+          message: 'Installing launcher update...'
+        });
+      }
+      // Quit and run the new installer; it will uninstall previous version as configured in NSIS
+      setTimeout(() => autoUpdater.quitAndInstall(true, true), 500);
+    });
+
+    autoUpdater.on('error', (err) => {
+      log.error('[LauncherUpdate] Auto-update error:', err);
+      // Fall back to game update so user can still play
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('launcher-status', {
+          status: 'error',
+          message: `Launcher update error: ${err.message}. Proceeding to game update...`
+        });
+      }
+      startUpdateCheck();
+    });
+
+    // Start check
+    autoUpdater.checkForUpdates();
+  } catch (e) {
+    log.error('[LauncherUpdate] Exception during setup:', e);
+    startUpdateCheck();
+  }
+}
 
 // App event handlers
 app.whenReady().then(() => {
