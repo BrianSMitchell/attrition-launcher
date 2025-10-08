@@ -86,7 +86,7 @@ class UpdateChecker {
         .filter(release => !release.prerelease)
         .map(release => ({
           release,
-          version: (release.tag_name || '').replace(/^v/, '')
+          version: (release.tag_name || '').trim().replace(/^v/, '')
         }))
         .filter(x => semver.valid(x.version));
 
