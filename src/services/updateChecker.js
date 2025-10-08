@@ -75,25 +75,31 @@ class UpdateChecker {
       const response = await axios.get(`${this.apiBaseUrl}/repos/${this.githubRepo}/releases`, {
         headers: {
           'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'Attrition-Launcher/1.0'
+        'User-Agent': 'Attrition-Launcher/1.0'
         },
         timeout: 30000
       });
 
-      // Filter out launcher releases (with -launcher suffix) to get only game releases
-      const gameReleases = response.data.filter(release => 
-        !release.tag_name.includes('-launcher')
-      );
-      
-      if (gameReleases.length === 0) {
-        throw new Error('No game releases found in the repository');
+      // Filter out launcher releases (with -launcher suffix), pre-releases, and invalid semver
+      const validGameReleases = response.data
+        .filter(release => !release.tag_name.includes('-launcher'))
+        .filter(release => !release.prerelease)
+        .map(release => ({
+          release,
+          version: (release.tag_name || '').replace(/^v/, '')
+        }))
+        .filter(x => semver.valid(x.version));
+
+      if (validGameReleases.length === 0) {
+        throw new Error('No valid game releases found in the repository');
       }
-      
-      // Get the latest game release
-      const latestRelease = gameReleases[0]; // Releases are sorted by date, newest first
-      const latestVersion = latestRelease.tag_name.replace(/^v/, ''); // Remove 'v' prefix
-      
-      log.info('Latest release info:', {
+
+      // Pick the highest semantic version (not strictly the most recent by date)
+      validGameReleases.sort((a, b) => semver.rcompare(a.version, b.version));
+      const latestRelease = validGameReleases[0].release;
+      const latestVersion = validGameReleases[0].version;
+
+      log.info('Latest release info (by semver):', {
         latestVersion,
         currentVersion: this.currentVersion,
         publishedAt: latestRelease.published_at,
