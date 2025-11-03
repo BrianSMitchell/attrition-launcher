@@ -13,7 +13,7 @@ The official launcher for **Attrition** - a strategic space empire MMO game. The
 ## 📥 Download
 
 ### For Players
-Download the latest launcher from the [Releases page](https://github.com/BrianSMitchell/attrition-launcher/releases/latest) or visit [attrition-game.com](https://attrition-game.com).
+Download the latest launcher from the [Releases page](https://github.com/BrianSMitchell/attrition-launcher/releases/latest) or visit [attritiongame.dev](https://attritiongame.dev).
 
 ### Supported Platforms
 - **Windows 10+** (64-bit) - `Attrition Launcher-Setup-{version}.exe`
@@ -106,7 +106,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🔗 Related
 
 - **Main Game**: [Attrition Game Repository](https://github.com/BrianSMitchell/attrition-game)
-- **Website**: [attrition-game.com](https://attrition-game.com)
+- **Website**: [attritiongame.dev](https://attritiongame.dev)
 - **Community**: [Discord Server](https://discord.gg/attrition) (Coming Soon)
 
 ---
